@@ -54,6 +54,8 @@
 
 	__webpack_require__(19);
 
+	__webpack_require__(20);
+
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 	function reducer() {
@@ -71,7 +73,7 @@
 	var reduxStore = (0, _redux.createStore)(reducer);
 
 	document.addEventListener('DOMContentLoaded', function () {
-	  _riot2.default.mount('sample-output', { store: reduxStore });
+	  _riot2.default.mount('*', { store: reduxStore });
 	});
 
 /***/ },
@@ -3835,16 +3837,42 @@
 
 	var riot = __webpack_require__(1);
 
-	riot.tag2('sample-output', '<h1>{this.opts.store.getState().title}</h1> <form onsubmit="{changeTitle}"> <input type="text" name="newTitle"> <input type="submit" value="Change Title"> </form>', '', '', function(opts) {
+	riot.tag2('sample-output', '<h1>{this.opts.store.getState().title}</h1>', '', '', function(opts) {
+	    this.opts.store.subscribe(() => this.update())
+	});
+
+
+/***/ },
+/* 20 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var riot = __webpack_require__(1);
+
+	riot.tag2('title-form', '<form onsubmit="{changeTitle}"> <input type="text" name="newTitle"> <input type="submit" value="Change Title"> </form>', '', '', function(opts) {
+	    const actions = __webpack_require__(21)
 	    this.changeTitle = function() {
 	      if (!this.newTitle.value) {
 	        return;
 	      }
-	      this.opts.store.dispatch({ type: 'CHANGE_TITLE', data: this.newTitle.value })
+	      this.opts.store.dispatch(actions.changeTitle(this.newTitle.value))
 	      this.newTitle.value = ''
 	    }.bind(this)
 	});
 
+
+/***/ },
+/* 21 */
+/***/ function(module, exports) {
+
+	'use strict';
+
+	module.exports = {
+	  changeTitle: changeTitle
+	};
+
+	function changeTitle(newTitle) {
+	  return { type: 'CHANGE_TITLE', data: newTitle };
+	}
 
 /***/ }
 /******/ ]);

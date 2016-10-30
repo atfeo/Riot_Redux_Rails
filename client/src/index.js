@@ -2,6 +2,7 @@ import riot from 'riot';
 import { createStore } from 'redux';
 
 import './tags/sample-output.tag';
+import './tags/title-form.tag';
 
 function reducer(state = { title: 'Default title' }, action) {
   switch (action.type) {
@@ -15,5 +16,5 @@ function reducer(state = { title: 'Default title' }, action) {
 const reduxStore = createStore(reducer);
 
 document.addEventListener('DOMContentLoaded', () => {
-  riot.mount('sample-output', { store: reduxStore });
+  riot.mount('*', { store: reduxStore });
 });
