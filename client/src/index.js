@@ -5,6 +5,7 @@ import thunk from 'redux-thunk';
 import './tags/todo-app.tag';
 import './tags/task-list.tag';
 import './tags/loading-indicator.tag';
+import './tags/task-form.tag';
 
 function reducer(state = { title: 'Default title' }, action) {
   switch (action.type) {
@@ -12,6 +13,10 @@ function reducer(state = { title: 'Default title' }, action) {
       return Object.assign({}, state, { tasks: action.data });
     case 'TOGGLE_LOADING':
       return Object.assign({}, state, { isLoading: action.data });
+    case 'TASK_ADDED':
+      return Object.assign({}, state, { tasks: state.tasks.concat(action.data) });
+    case 'TEXT_EXISTS':
+      return Object.assign({}, state, { isText: action.data });
     default:
       return state;
   }
