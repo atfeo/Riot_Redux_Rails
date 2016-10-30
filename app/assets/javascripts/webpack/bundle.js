@@ -52,9 +52,15 @@
 
 	var _redux = __webpack_require__(3);
 
-	__webpack_require__(19);
+	var _reduxThunk = __webpack_require__(19);
+
+	var _reduxThunk2 = _interopRequireDefault(_reduxThunk);
 
 	__webpack_require__(20);
+
+	__webpack_require__(22);
+
+	__webpack_require__(23);
 
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -63,17 +69,19 @@
 	  var action = arguments[1];
 
 	  switch (action.type) {
-	    case 'CHANGE_TITLE':
-	      return Object.assign({}, state, { title: action.data });
+	    case 'TASKS_LOADED':
+	      return Object.assign({}, state, { tasks: action.data });
+	    case 'TOGGLE_LOADING':
+	      return Object.assign({}, state, { isLoading: action.data });
 	    default:
 	      return state;
 	  }
 	}
 
-	var reduxStore = (0, _redux.createStore)(reducer);
+	var reduxStore = (0, _redux.createStore)(reducer, (0, _redux.applyMiddleware)(_reduxThunk2.default));
 
 	document.addEventListener('DOMContentLoaded', function () {
-	  _riot2.default.mount('*', { store: reduxStore });
+	  _riot2.default.mount('todo-app', { store: reduxStore });
 	});
 
 /***/ },
@@ -3833,14 +3841,31 @@
 
 /***/ },
 /* 19 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ function(module, exports) {
 
-	var riot = __webpack_require__(1);
+	'use strict';
 
-	riot.tag2('sample-output', '<h1>{this.opts.store.getState().title}</h1>', '', '', function(opts) {
-	    this.opts.store.subscribe(() => this.update())
-	});
+	exports.__esModule = true;
+	function createThunkMiddleware(extraArgument) {
+	  return function (_ref) {
+	    var dispatch = _ref.dispatch;
+	    var getState = _ref.getState;
+	    return function (next) {
+	      return function (action) {
+	        if (typeof action === 'function') {
+	          return action(dispatch, getState, extraArgument);
+	        }
 
+	        return next(action);
+	      };
+	    };
+	  };
+	}
+
+	var thunk = createThunkMiddleware();
+	thunk.withExtraArgument = createThunkMiddleware;
+
+	exports['default'] = thunk;
 
 /***/ },
 /* 20 */
@@ -3848,15 +3873,18 @@
 
 	var riot = __webpack_require__(1);
 
-	riot.tag2('title-form', '<form onsubmit="{changeTitle}"> <input type="text" name="newTitle"> <input type="submit" value="Change Title"> </form>', '', '', function(opts) {
+	riot.tag2('todo-app', '<loading-indicator loading="{this.state.isLoading}"></loading-indicator> <task-list tasks="{this.state.tasks}"></task-list>', '', '', function(opts) {
 	    const actions = __webpack_require__(21)
-	    this.changeTitle = function() {
-	      if (!this.newTitle.value) {
-	        return;
-	      }
-	      this.opts.store.dispatch(actions.changeTitle(this.newTitle.value))
-	      this.newTitle.value = ''
-	    }.bind(this)
+	    const store = this.opts.store
+
+	    this.on('mount', ()=> {
+	      store.dispatch(actions.loadTasks())
+	    })
+
+	    store.subscribe(() => {
+	      this.state = store.getState()
+	      this.update()
+	    })
 	});
 
 
@@ -3867,12 +3895,56 @@
 	'use strict';
 
 	module.exports = {
-	  changeTitle: changeTitle
+	  loadTasks: loadTasks
 	};
 
-	function changeTitle(newTitle) {
-	  return { type: 'CHANGE_TITLE', data: newTitle };
+	function loadTasks() {
+	  return function (dispatch) {
+	    dispatch(toggleLoading(true));
+	    $.ajax({
+	      url: '/api/tasks.json',
+	      dataType: 'json',
+	      success: function success(res) {
+	        setTimeout(function () {
+	          dispatch(tasksloaded(res.tasks));
+	          dispatch(toggleLoading(false));
+	        }, 2000);
+	      },
+	      error: function error(xhr, status, err) {
+	        dispatch(toggleLoading(false));
+	        console.log('/api/tasks.json', status, err.toString());
+	      }
+	    });
+	  };
 	}
+
+	function tasksloaded(tasks) {
+	  return { type: 'TASKS_LOADED', data: tasks };
+	}
+
+	function toggleLoading(isLoading) {
+	  return { type: 'TOGGLE_LOADING', data: isLoading };
+	}
+
+/***/ },
+/* 22 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var riot = __webpack_require__(1);
+
+	riot.tag2('task-list', '<ul> <li each="{task in this.opts.tasks}"> {task.name} </li> </ul>', '', '', function(opts) {
+	});
+
+
+/***/ },
+/* 23 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var riot = __webpack_require__(1);
+
+	riot.tag2('loading-indicator', '<img src="/assets/loading.gif" show="{this.opts.loading}">', '', '', function(opts) {
+	});
+
 
 /***/ }
 /******/ ]);
