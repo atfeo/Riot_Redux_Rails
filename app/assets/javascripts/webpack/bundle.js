@@ -64,7 +64,11 @@
 
 	__webpack_require__(24);
 
+	__webpack_require__(25);
+
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
 
 	function reducer() {
 	  var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : { title: 'Default title' };
@@ -79,6 +83,18 @@
 	      return Object.assign({}, state, { tasks: state.tasks.concat(action.data) });
 	    case 'TEXT_EXISTS':
 	      return Object.assign({}, state, { isText: action.data });
+	    case 'TASK_COMPLETION_CHANGED':
+	      {
+	        var taskIndex = state.tasks.findIndex(function (task) {
+	          return task.id == action.data.id;
+	        });
+	        var newTasks = [].concat(_toConsumableArray(state.tasks.slice(0, taskIndex)), [Object.assign({}, state.tasks[taskIndex], { isComplete: action.data.isComplete })], _toConsumableArray(state.tasks.slice(taskIndex + 1)));
+	        return Object.assign({}, state, { tasks: newTasks });
+	      }
+	    case 'SHOW_ERROR':
+	      return Object.assign({}, state, { isError: true, errorMessage: action.data });
+	    case 'HIDE_ERROR':
+	      return Object.assign({}, state, { isError: false, errorMessage: '' });
 	    default:
 	      return state;
 	  }
@@ -3879,7 +3895,7 @@
 
 	var riot = __webpack_require__(1);
 
-	riot.tag2('todo-app', '<h3>Todo List</h3> <task-form addtask="{this.handleNewTask}" handlekeyup="{handleInputForm}" objects="{this.state.tasks}" istext="{this.state.isText}"> </task-form> <loading-indicator loading="{this.state.isLoading}"></loading-indicator> <task-list tasks="{this.state.tasks}"></task-list>', '', '', function(opts) {
+	riot.tag2('todo-app', '<h3>Todo List</h3> <task-form addtask="{this.handleNewTask}" handlekeyup="{handleInputForm}" objects="{this.state.tasks}" istext="{this.state.isText}"> </task-form> <error-message message="{this.state.errorMessage}" iserror="{this.state.isError}"></error-message> <loading-indicator loading="{this.state.isLoading}"></loading-indicator> <task-list tasks="{this.state.tasks}" handlecheck="{handleTaskCompletionChange}"> </task-list>', '', '', function(opts) {
 	    const actions = __webpack_require__(21)
 	    const store = this.opts.store
 
@@ -3899,6 +3915,10 @@
 	    this.handleInputForm = function(value) {
 	      store.dispatch(actions.textExists(value))
 	    }.bind(this)
+
+	    this.handleTaskCompletionChange = function(id, isComplete) {
+	      store.dispatch(actions.toggleComplete(id, isComplete))
+	    }.bind(this)
 	});
 
 
@@ -3911,7 +3931,8 @@
 	module.exports = {
 	  loadTasks: loadTasks,
 	  addTask: addTask,
-	  textExists: textExists
+	  textExists: textExists,
+	  toggleComplete: toggleComplete
 	};
 
 	function loadTasks() {
@@ -3928,6 +3949,7 @@
 	      },
 	      error: function error(xhr, status, err) {
 	        dispatch(toggleLoading(false));
+	        dispatch(tempErrorMessage('API Error'));
 	        console.log('/api/tasks.json', status, err.toString());
 	      }
 	    });
@@ -3956,6 +3978,7 @@
 	      },
 	      error: function error(xhr, status, err) {
 	        dispatch(toggleLoading(false));
+	        dispatch(tempErrorMessage('API Error'));
 	        console.log('/api/tasks.json', status, err.toString());
 	      }
 	    });
@@ -3970,13 +3993,59 @@
 	  return { type: 'TEXT_EXISTS', data: value };
 	}
 
+	function toggleComplete(id, isComplete) {
+	  return function (dispatch) {
+	    $.ajax({
+	      url: '/api/tasks/' + id,
+	      type: 'PATCH',
+	      dataType: 'json',
+	      data: { isComplete: isComplete },
+	      success: function success(res) {
+	        dispatch(completeChanged(res.id, res.isComplete));
+	      },
+	      error: function error(xhr, status, err) {
+	        dispatch(tempErrorMessage('API Error'));
+	        dispatch(completeChanged(id, !isComplete));
+	        console.log('/api/tasks/' + id, status, err.toString());
+	      }
+	    });
+	  };
+	}
+
+	function completeChanged(id, isComplete) {
+	  return {
+	    type: 'TASK_COMPLETION_CHANGED',
+	    data: { id: id, isComplete: isComplete }
+	  };
+	}
+
+	function showError(message) {
+	  return { type: 'SHOW_ERROR', data: message };
+	}
+
+	function hideError() {
+	  return { type: 'HIDE_ERROR' };
+	}
+
+	function tempErrorMessage(message) {
+	  return function (dispatch) {
+	    dispatch(showError(message));
+	    setTimeout(function () {
+	      dispatch(hideError());
+	    }, 2000);
+	  };
+	}
+
 /***/ },
 /* 22 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var riot = __webpack_require__(1);
 
-	riot.tag2('task-list', '<ul> <li each="{task in this.opts.tasks}"> {task.name} </li> </ul>', '', '', function(opts) {
+	riot.tag2('task-list', '<ul> <li each="{task in this.opts.tasks}"> <label class="{completed: task.isComplete}"> <input type="checkbox" id="{task.id}" __checked="{task.isComplete}" onchange="{handleCheck}"> {task.name} </label> </li> </ul>', '', '', function(opts) {
+	    this.handleCheck = function(e) {
+	      this.opts.handlecheck(e.target.id, e.target.checked)
+	    }.bind(this)
 	});
 
 
@@ -4009,6 +4078,16 @@
 	    this.handleKeyup = function() {
 	      this.opts.handlekeyup(this.newTask.value)
 	    }.bind(this)
+	});
+
+
+/***/ },
+/* 25 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var riot = __webpack_require__(1);
+
+	riot.tag2('error-message', '<div show="{this.opts.iserror}"> {this.opts.message} </div>', 'error-message div,[riot-tag="error-message"] div,[data-is="error-message"] div{ margin-top: 5px; padding-left: 10px; color: white; background-color: red; }', '', function(opts) {
 	});
 
 
